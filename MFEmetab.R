@@ -28,11 +28,11 @@ library(reshape2)
 # outName       Text to use in labeling outputs, e.g. 'Acton2008'. Character [NO DEFAULT]
 # dirDump       Directory where outputs should be dumped, e.g. 'C:/GLEON/Acton/Results' [NO DEFAULT]
 
+#For trouble shooting
+#maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
 mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&caraco",fluxDummyToggle=TRUE,bootstrap='no',lat=46.16,elev=535,windHeight=2,timeStep=10,sensorDepth=0.7){
   ########################################
-  #Set up
-  setwd(dirDump)
   
   #### support functions
   #Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)
@@ -171,8 +171,7 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   # timeStep:   The time step of the data
   
   
-  fillHoles <- function(dataIn,maxLength,timeStep)
-  {
+  fillHoles <- function(dataIn,maxLength,timeStep){
     
     #Number of rows in dataIn
     nObs <- dim(dataIn)[1]
@@ -492,10 +491,11 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   
   metDataEL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="EL",minDate=minDate,maxDate=maxDate)
   metDataWL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="WL",minDate=minDate,maxDate=maxDate)
-  metData=rbind(metDataEL,metDataWL)
-  metData=metData[!duplicated(metData$dateTime),]
+  metDataFE<-sensordbTable("HOBO_METSTATION_CORR",lakeID="FE",minDate=minDate,maxDate=maxDate)
+  metData=rbind(metDataEL,metDataWL, metDataFE)
   #PAR
   #Divide PAR by 1000 to convert from measured units (umol m-2 s-1) to model units (mmol m-2 s-1)
+  #made choice to average PAR readings from WL & EL/FE
   dataPAR<-aggregate(x=as.numeric(metData$cleanedPAR_uE_m2_s),by=list(metData$dateTime),FUN=mean,na.rm=TRUE)
   colnames(dataPAR)=c("datetime","PAR")
   dataPAR$PAR <- dataPAR$PAR/1000
@@ -607,8 +607,8 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   # and R results.  If the data you're inputting is exclusively in daylight savings time (like 
   # our data from the summer), you can just add these two lines of code into script:
   # #
-  # sunrise <- sunrise + 3600
-  # sunset <- sunset + 3600
+  sunrise <- sunrise + 3600
+  sunset <- sunset + 3600
   # #
   # Comment the shit out of those lines so you don't forget about them later.  
   # Those lines would go right before:
@@ -639,7 +639,7 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   completeTimes <- data.frame(datetime=completeTimes[completeTimes$datetime >= startTrim & completeTimes$datetime < endTrim,],stringsAsFactors=FALSE)
   
   #(Useful later) Vector giving which solar day each time in completeTimes belongs to
-  solarDaysBreaks <- sun$sunrise[sun$sunrise <= endTrim]
+  solarDaysBreaks <- unique(sun$sunrise[sun$sunrise <= endTrim])
   solarDaysVec <- cut.POSIXt(completeTimes$datetime,breaks=solarDaysBreaks)
   
   
@@ -661,9 +661,8 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   #windSpeed - fill with daily average as long as at least 80% of data are available
   
   #Loop over days
-  for (i in 1:length(unique(solarDaysVec)))
-  {
-    
+  for (i in 1:length(unique(solarDaysVec))){
+    cat(i, " ")
     #Extract data between sunrise on day i and sunrise on day i+1
     timeSlice <- c(sun$sunrise[i], sun$sunrise[i+1])
     dataTemp <- dataWind[dataWind$datetime>=timeSlice[1] & dataWind$datetime<timeSlice[2],]
@@ -673,13 +672,17 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
     nNA <- length(which(is.na(dataTemp$WS)))
     
     #If >20% of obs are NA, skip to next i
-    if (nNA/nTot > 0.20) next else
-      
-    {
-      #Calculate mean windSpeed and sub in for NA values
-      meanSpeed <- mean(dataTemp$WS,na.rm=T)
-      naRows <- as.numeric(row.names(dataTemp[is.na(dataTemp$WS),]))
-      dataWind$WS[naRows] <- meanSpeed
+    if(nrow(dataTemp)>0){
+      if (nNA/nTot > 0.20){
+        next
+      }else{
+        #Calculate mean windSpeed and sub in for NA values
+        meanSpeed <- mean(dataTemp$WS,na.rm=T)
+        naRows <- as.numeric(row.names(dataTemp[is.na(dataTemp$WS),]))
+        dataWind$WS[naRows] <- meanSpeed
+      }
+    }else{
+      next
     }
   }
   

@@ -1,7 +1,7 @@
 # utilities
 Repository for useful functions custom-built to work with MFE database
 
-
+Be sure you have up-to-date versions of the scripts for interfacing with the databases from the MFEh2o/db repository
 
 Functions included in repo:
 
