@@ -158,11 +158,11 @@ timeTravel <- function(df){
   
   # Get dateTimeSet
   dateTimeSet <- df$dateTimeSet %>%
-    lubridate::ymd_hms()
+    lubridate::parse_date_time(., orders = c("ymd_HMS", "ymd", "ymd_HM"))
   
   # Get dateTimeSample
   dateTimeSample <- df$dateTimeSample %>%
-    lubridate::ymd_hms()
+    lubridate::parse_date_time(., orders = c("ymd_HMS", "ymd", "ymd_HM"))
   
   # Return logic
   inds_timeTravel <- which(dateTimeSet > dateTimeSample)
@@ -186,11 +186,11 @@ timeStop <- function(df){
   
   # Get dateTimeSet
   dateTimeSet <- df$dateTimeSet %>%
-    lubridate::ymd_hms()
+    lubridate::parse_date_time(., orders = c("ymd_HMS", "ymd", "ymd_HM"))
   
   # Get dateTimeSample
   dateTimeSample <- df$dateTimeSample %>%
-    lubridate::ymd_hms()
+    lubridate::parse_date_time(., orders = c("ymd_HMS", "ymd", "ymd_HM"))
   
   # Return logic
   inds_timeStop <- which(dateTimeSet == dateTimeSample)
