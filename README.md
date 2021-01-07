@@ -17,4 +17,5 @@ checks.R contains 6 functions:
 4. `timeCheck()` checks whether the `dateTimeSample` time matches the time in `sampleID`. If there are mismatches, returns the row indices of the mismatches. If no mismatches, returns a success message and nothing else (i.e. NULL).
 5. `dateSampleCheck()` checks whether the date in `dateSample` matches the date in `dateTimeSample`. If there are mismatches, returns the row indices of the mismatches. If no mismatches, returns a success message and nothing else (i.e. NULL).
 6. `dateSetCheck()` checks whether the date in `dateSet` matches the date in `dateTimeSet`. If there are mismatches, returns the row indices of the mismatches. If no mismatches, returns a success message and nothing else (i.e. NULL).
-7. `timeTravel()` detects instances of 'time travel' (dateTimeSet *later* than dateTimeSample) and 'time stop' (dateTimeSet *equal to* dateTimeSample). No matter whether both, neither, or one of these exists, returns a list with two elements: `inds_timeTravel` and `inds_timeStop`, each of which are vectors of row indices.
+7. `timeTravel()` detects instances of 'time travel' (dateTimeSet *later* than dateTimeSample) and returns row indices.
+8. `timeStop()` detects instances of 'time stop' (dateTimeSet *equal* to dateTimeSample) and returns row indices.
