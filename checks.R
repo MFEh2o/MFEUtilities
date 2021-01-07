@@ -165,23 +165,40 @@ timeTravel <- function(df){
     lubridate::ymd_hms()
   
   # Return logic
-  if(all(dateTimeSample > dateTimeSet)){
-    message("No time travel detected: dateTimeSample is always later than dateTimeSet.")
-    return(list(inds_timeTravel = NULL,
-                inds_timeStop = NULL))
+  inds_timeTravel <- which(dateTimeSet > dateTimeSample)
+  
+  if(length(inds_timeTravel) == 0){
+    message("No time travel detected.")
   }else{
-    if(any(dateTimeSample == dateTimeSet) & !any(dateTimeSample < dateTimeSet)){
-      # time stop, but no time travel
-      return(list(inds_timeTravel = NULL,
-                  inds_timeStop = which(dateTimeSample == dateTimeSet)))
-    }else if(any(dateTimeSample == dateTimeSet) & any(dateTimeSample < dateTimeSet)){
-      # both time stop and time travel
-      return(list(inds_timeTravel = which(dateTimeSample < dateTimeSet),
-                  inds_timeStop = which(dateTimeSample == dateTimeSet)))
-    }else{
-      # time travel, but no time stop
-      return(list(inds_timeTravel = which(dateTimeSample < dateTimeSet),
-                  inds_timeStop = NULL))
-    }
+    message(paste0(length(inds_timeTravel), " instances of time travel detected. Returning row indices."))
+    return(inds_timeTravel)
+  }
+}
+
+# Checks whether dateTimeSample is equal to dateTimeSet
+timeStop <- function(df){
+  # Verify that df is a data frame
+  dfCheck(df)
+  
+  # Verify that df has a dateSet and a dateTimeSet column
+  colsCheck(df,
+            cols = c("dateTimeSet", "dateTimeSample"))
+  
+  # Get dateTimeSet
+  dateTimeSet <- df$dateTimeSet %>%
+    lubridate::ymd_hms()
+  
+  # Get dateTimeSample
+  dateTimeSample <- df$dateTimeSample %>%
+    lubridate::ymd_hms()
+  
+  # Return logic
+  inds_timeStop <- which(dateTimeSet == dateTimeSample)
+  
+  if(length(inds_timeStop) == 0){
+    message("No time stops detected.")
+  }else{
+    message(paste0(length(inds_timeStop), " time stops detected. Returning row indices."))
+    return(inds_timeStop)
   }
 }
