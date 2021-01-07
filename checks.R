@@ -184,13 +184,4 @@ timeTravel <- function(df){
                   inds_timeStop = NULL))
     }
   }
-  
-  
-  if(all(dateTimeSet == dateTimeSample)){
-    message("All dates match between `dateSet` and `dateTimeSet`.")
-  }else{
-    mismatchIDs <- which(dateSetDates != dateTimeSetDates)
-    message(paste0(length(mismatchIDs), " date mismatches found. Returning row indices."))
-    return(mismatchIDs)
-  }
 }
