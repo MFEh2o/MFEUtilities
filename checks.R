@@ -176,7 +176,7 @@ timeTravel <- function(df){
 }
 
 # Checks whether dateTimeSample is equal to dateTimeSet
-timeStop <- function(df){
+sameTime <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
   
@@ -193,12 +193,12 @@ timeStop <- function(df){
     lubridate::parse_date_time(., orders = c("ymd_HMS", "ymd", "ymd_HM"))
   
   # Return logic
-  inds_timeStop <- which(dateTimeSet == dateTimeSample)
+  inds_sameTime <- which(dateTimeSet == dateTimeSample)
   
-  if(length(inds_timeStop) == 0){
-    message("No time stops detected.")
+  if(length(inds_sameTime) == 0){
+    message("No same-time rows detected.")
   }else{
-    message(paste0(length(inds_timeStop), " time stops detected. Returning row indices."))
-    return(inds_timeStop)
+    message(paste0(length(inds_sameTime), " same-time rows detected. Returning row indices."))
+    return(inds_sameTime)
   }
 }
