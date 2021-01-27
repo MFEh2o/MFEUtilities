@@ -1,11 +1,8 @@
-# Check functions
-# Originally created by Kaija Gahm on 7 January 2020
-# Inspired by GH issue 107. This is a draft. Will be expanded as needed.
-
-# Libraries ---------------------------------------------------------------
-library(dplyr)
-
-# Check that object is a data frame ---------------------------------------
+#' Check whether something is a data frame
+#' 
+#' @param obj An object that you want to check for df-ness
+#' @return Throws an error if `obj` is not a data frame.
+#' @export
 dfCheck <- function(obj){
   if(!is.data.frame(obj)){
     stop(paste0("`", deparse(substitute(obj)), 
@@ -13,8 +10,14 @@ dfCheck <- function(obj){
   }
 }
 
-
-# Check that data frame has certain columns -------------------------------
+#' Check that a data frame has certain columns
+#' 
+#' `colsCheck` checks whether a data frame contains the specified columns. You can check for as many columns as you want, and the function will throw an informative error if *any* of them are missing (and it will tell you which ones) are missing. It will also check that `obj` is a data frame.
+#' 
+#' @param obj An object that you want to check for cols
+#' @param cols A vector of column names you want to check for
+#' @return Throws an informative error if any of `cols` are missing from `obj`. Additionally throws an error if `obj` is not a data frame (see `dfCheck()`)
+#' @export
 colsCheck <- function(obj, cols){
   # Check whether the object is a data frame
   dfCheck(obj)
@@ -31,8 +34,13 @@ colsCheck <- function(obj, cols){
   }
 }
 
-# Check sampleID date -----------------------------------------------------
-## This function checks the date in the sampleID against the date in the dateSample column
+#' Check `sampleID` date against `dateSample`
+#' 
+#' `dateCheck` checks whether all the dates in the `sampleID` column match up with the dates in the `dateSample` column. If they don't, returns numeric indices of the rows that contain mismatches. This function additionally verifies that `df` is a data frame and that it has the columns `sampleID` and `dateSample`.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
 dateCheck <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
@@ -54,12 +62,19 @@ dateCheck <- function(df){
     message("All dates match between `sampleID` and `dateSample`.")
   }else{
     mismatchIDs <- which(sampleIDDates != dateSampleDates)
-    message(paste0(length(mismatchIDs), " date mismatches found. Returning row indices."))
+    message(paste0(length(mismatchIDs), 
+                   " date mismatches found. Returning row indices."))
     return(mismatchIDs)
   }
 }
 
-# Check sampleID time -----------------------------------------------------
+#' Check `sampleID` time against the time portion of `dateTimeSample`
+#' 
+#' `timeCheck` checks whether all the times in the `sampleID` column match up with the times in the `dateTimeSample` column. If they don't, returns numeric indices of the rows that contain mismatches. This function also verifies that `df` is a data frame and that it has the columns `sampleID` and `dateTimeSample`.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
 timeCheck <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
@@ -84,13 +99,19 @@ timeCheck <- function(df){
     message("All times match between `sampleID` and `dateTimeSample`.")
   }else{
     mismatchIDs <- which(sampleIDTimes != dateTimeSampleTimes)
-    message(paste0(length(mismatchIDs), " time mismatches found. Returning row indices."))
+    message(paste0(length(mismatchIDs), 
+                   " time mismatches found. Returning row indices."))
     return(mismatchIDs)
   }
 }
 
-
-# Check dateSample and dateTimeSample -------------------------------------
+#' Check that dates match between `dateSample` and `dateTimeSample`
+#' 
+#' `dateSampleCheck` checks whether all the dates match between `dateSample` and `dateTimeSample`. If they don't, returns numeric indices of the rows that contain mismatches. This function also verifies that `df` is a data frame and that it has the columns `dateSample` and `dateTimeSample`.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
 dateSampleCheck <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
@@ -118,7 +139,15 @@ dateSampleCheck <- function(df){
   }
 }
 
-# Check dateSet and dateTimeSet -------------------------------------------
+
+
+#' Check that dates match between `dateSet` and `dateTimeSet`
+#' 
+#' `dateSetCheck` checks whether all the dates match between `dateSet` and `dateTimeSet`. If they don't, returns numeric indices of the rows that contain mismatches. This function also verifies that `df` is a data frame and that it has the columns `dateSet` and `dateTimeSet`.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
 dateSetCheck <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
@@ -146,8 +175,13 @@ dateSetCheck <- function(df){
   }
 }
 
-# Check whether time spans make sense -------------------------------------
-# Checks whether dateTimeSample is later than dateTimeSet
+#' Check that sample-set time spans are logical
+#' 
+#' `timeTravel` checks whether there are any rows where `dateTimeSet` is later than `dateTimeSample`, which wouldn't make sense. The function also verifies that `df` is a data frame and has `dateTimeSet` and `dateTimeSample` columns.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
 timeTravel <- function(df){
   # Verify that df is a data frame
   dfCheck(df)
@@ -175,8 +209,14 @@ timeTravel <- function(df){
   }
 }
 
-# Checks whether dateTimeSample is equal to dateTimeSet
-sameTime <- function(df){
+#' Check for rows where `dateTimeSet` and `dateTimeSample` are the same
+#' 
+#' `sameTime` checks whether there are any rows where `dateTimeSet` is equal to `dateTimeSample`. The function also verifies that `df` is a data frame and has `dateTimeSet` and `dateTimeSample` columns.
+#' 
+#' @param df A data frame to check
+#' @return ID's of rows that have mismatched dates.
+#' @export
+sameTime <- function(df, excludeZero = F){
   # Verify that df is a data frame
   dfCheck(df)
   
@@ -195,8 +235,18 @@ sameTime <- function(df){
   # Return logic
   inds_sameTime <- which(dateTimeSet == dateTimeSample)
   
-  if(length(inds_sameTime) == 0){
+  if(excludeZero){
+    # if requested, exclude any where both times are 00:00
+    zeroes <- which(dateTimeSet == dateTimeSample & 
+                      grepl("00:00", dateTimeSet) & 
+                      grepl("00:00", dateTimeSample))
+    inds_sameTime <- inds_sameTime[!(inds_sameTime %in% zeroes)]
+  }
+  
+  if(length(inds_sameTime) == 0 & excludeZero == F){
     message("No same-time rows detected.")
+  }else if(length(inds_sameTime) == 0 & excludeZero == T){
+    message("No same-time rows detected. Excluded ", length(zeroes), " rows where set and sample times were both 00:00.")
   }else{
     message(paste0(length(inds_sameTime), " same-time rows detected. Returning row indices."))
     return(inds_sameTime)
