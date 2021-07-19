@@ -1,5 +1,7 @@
 # Functionality for generating lake metabolism estimates from MFE database
 # SEJ with code from CTS, JAZ, CRO, and CJT
+# Originally created 14 Feb 2019
+# Edited by KG in January 2021
 
 #Load required packages
 library(LakeMetabolizer)
@@ -7,7 +9,7 @@ library(reshape2)
 
 #mfeMetab
 # SEJ from CTS CRO, and CJT code
-# 14 Feb 2019
+
 # putting Solomon metabolism code into a function and adding some options for different K models
 # also allows for pulling input data directly from MFE sensor database
 #Arguments are:
