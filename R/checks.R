@@ -1,3 +1,7 @@
+# General database check functions
+# Kaija Gahm, with some input from Randi Notte
+# January 2021
+
 #' Check whether something is a data frame
 #' 
 #' @param obj An object that you want to check for df-ness
