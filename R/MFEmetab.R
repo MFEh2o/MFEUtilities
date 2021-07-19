@@ -21,7 +21,7 @@
 library(LakeMetabolizer)
 library(reshape2)
 
-#For trouble shooting
+#For troubleshooting:
 #maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
 mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,

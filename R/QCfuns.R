@@ -176,5 +176,3 @@ changeSomething<- function(something, with, tableName, columns, dateYYYYMMDD, up
   }
   write.csv(tableFix, paste0("Misc fixes/output/",tableName,".",dateYYYYMMDD, ".csv"), row.names = F)
 }
-
-
