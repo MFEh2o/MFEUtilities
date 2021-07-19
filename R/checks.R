@@ -1,6 +1,7 @@
 # General database check functions
 # Kaija Gahm, with some input from Randi Notte
 # January 2021
+# Note from Kaija in July 2021: Since writing these, I've realized that it may be easier to just use functions from the `checkmate` package, such as `assertDataFrame()`. I've used checkmate functions throughout the limno and fish entry tools. Check out the package documentation here: https://github.com/mllg/checkmate
 
 #' Check whether something is a data frame
 #' 
