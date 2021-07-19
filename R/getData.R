@@ -16,10 +16,10 @@
 
 getData <- function(column, values, con){
   # Get the names of all the db tables
-  tableNames <- dbListTables(con)
+  tableNames <- DBI::dbListTables(con)
   
   # Get the column names of all the db tables
-  l <- lapply(tableNames, function(x) dbListFields(con, x))
+  l <- lapply(tableNames, function(x) DBI::dbListFields(con, x))
   
   # Which tables contain the desired `column`?
   l2 <- lapply(l, function(x) column %in% x) %>% unlist() 
@@ -31,7 +31,7 @@ getData <- function(column, values, con){
   rows <- lapply(tableNamesReduced, function(x){
     query <- paste0("SELECT * FROM ", x, " WHERE ", column, " in (",
                     paste0(sprintf("'%s'", values), collapse = ", "), ")")
-    rows <- dbGetQuery(con, query)
+    rows <- DBI::dbGetQuery(con, query)
     return(rows)
   }) # now we have a list of db table subsets.
   
