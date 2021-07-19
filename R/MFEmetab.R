@@ -1,40 +1,33 @@
-# Functionality for generating lake metabolism estimates from MFE database
-# SEJ with code from CTS, JAZ, CRO, and CJT
-# Originally created 14 Feb 2019
-# Edited by KG in January 2021
+#' Functionality for generating lake metabolism estimates from MFE database. Putting Solomon metabolism code into a function and adding some options for different K models. Also allows for pulling input data directly from MFE sensor database.
+#' SEJ with code from CTS, JAZ, CRO, and CJT
+#' @param lakeID Lake to estimate metabolism for
+#' @param minDate First date to estimate metabolism for
+#' @param maxDate Last date to estimate metabolism for
+#' @param outName Prefix for output files 
+#' @param dirDump Directory where outputs should be dumped, e.g. 'C:/GLEON/Acton/Results'. No default value. 
+#' @param maxZMix Back up zmix if temp profile data is unavailable; defaults to 4, but should pick a value that makes sense.
+#' @param k Model for piston velocity - options are: "cole&caraco", a constant k600 specified by the desired value, or "read" (coming soon)
+#' @param fluxDummyToggle Use convention where atmospheric exchange is shut off during microstratification conditions.
+#' @param bootstrapping `yes` or `no`. Warning! Will take a while to run if `yes`. Defaults to `no`.
+#' @param lat Latitude of lake, decimal degrees, north positive; defaults to UNDERC (46.15)
+#' @param elev Elevation of lake surface, m above sea level; defaults to UNDERC (518)
+#' @param windHeight Height above lake surface at which wind speed is measured, m; defaults to UNDERC (2)
+#' @param timeStep Time interval between DO measurements, minutes; defaults to 10 minutes
+#' @param sensorDepth Depth of DO sensor, m; defaults to UNDERC (0.7?)
+#' @param outName Text to use in lableing outputs, e.g. 'Acton2008'. Character. No default.
+#' @export
 
 #Load required packages
 library(LakeMetabolizer)
 library(reshape2)
 
-#mfeMetab
-# SEJ from CTS CRO, and CJT code
-
-# putting Solomon metabolism code into a function and adding some options for different K models
-# also allows for pulling input data directly from MFE sensor database
-#Arguments are:
-# lakeID        lake to estimate metabolism for
-# minDate       first date to estimate metabolism for
-# maxDate       last date to estimate metabolism for
-# outName       prefix for output files
-# dirDump       Directory where outputs should be dumped, e.g. 'C:/GLEON/Acton/Results' [NO DEFAULT]
-# maxZMix       Back up zmix if temp profile data is unavailable; defaults to 4, but should pick a value that makes sense
-# k             Model for piston velocity - options are: "cole&caraco", a constant k600 specified by the desired value, or "read" (coming soon)
-# fluxDummyToggle     Use convention where atmospheric exchange is shut off during microstratificaiton conditions
-# bootstrapping yes or no? Warning! will take a while to run if 'yes'; defaults to no
-# lat           Latitude of lake, decimal degrees, north positive; defaults to UNDERC (46.15)
-# elev          Elevation of lake surface, m above sea level; defaults to UNDERC (518)
-# windHeight    Height above lake surface at which wind speed is measured, m; defaults to UNDERC (2)
-# timeStep      Time interval between DO measurements, minutes; defaults to 10 minutes
-# sensorDepth   Depth of DO sensor, m; defaults to UNDERC (0.7?)
-# outName       Text to use in labeling outputs, e.g. 'Acton2008'. Character [NO DEFAULT]
-# dirDump       Directory where outputs should be dumped, e.g. 'C:/GLEON/Acton/Results' [NO DEFAULT]
-
 #For trouble shooting
 #maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
-mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&caraco",fluxDummyToggle=TRUE,bootstrap='no',lat=46.16,elev=535,windHeight=2,timeStep=10,sensorDepth=0.7){
-  ########################################
+mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
+                     k = "cole&caraco", fluxDummyToggle = TRUE, 
+                     bootstrap = 'no', lat = 46.16, elev = 535, windHeight = 2,
+                     timeStep = 10, sensorDepth = 0.7){
   
   #### support functions
   #Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)
@@ -1030,8 +1023,3 @@ mfeMetab<-function(lakeID,minDate,maxDate,outName,dirDump,maxZMix=8,k="cole&cara
   
   return(list(optimOut=optimOut,GPPFit=GPPFitOut))
 }
-
-
-
-
-
