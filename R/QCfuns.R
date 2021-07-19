@@ -1,30 +1,40 @@
 #QCfuns.R
 #QC checks for everyday use
 #RNN 2020-12-03
+# KG note: as of 2021, many of these functions are probably superseded by the standard MFE database check script. But I'm keeping them here and documenting them just in case.
 
+#' Check for missing/extra columns
+#' 
+#' @param old A data frame (the old/original version)
+#' @param new A data frame (the new version)
+#' @return Gives warnings/messages to tell about missing or extra columns.
+#' @export
 
-#check missing/extra columns
-checkCols<- function(old, new){
-  missing<-colnames(old)[!colnames(old) %in% colnames(new)]
-  extra<- colnames(new)[!colnames(new) %in% colnames(old)]
+checkCols <- function(old, new){
+  missing <-colnames(old)[!colnames(old) %in% colnames(new)]
+  extra <- colnames(new)[!colnames(new) %in% colnames(old)]
   
   if(all(colnames(new)==colnames(old))==TRUE){
-    print("Column names and order match")
+    message("Column names and order match")
   }else{
-    print("Column names and order DO NOT match")
-    print(paste0(c("Missing: ", missing)), quote = F)
-    print(paste0(c("Extra: ", extra)), quote = F)
+    message("Column names and order DO NOT match")
+    warning(paste0(c("Missing: ", missing)), quote = F)
+    warning(paste0(c("Extra: ", extra)), quote = F)
   }
 }
 
-
-#check metadata
+#' Check that all metadataID's show up in the METADATA table. Requires that you have previously connected to the database using dbTable().
+#' 
+#' @param new A data frame (the old/original version)
+#' @return Gives warnings/messages about metadataID's and whether they show up in the METADATA table.
+#' @export
+#' 
 checkMet<- function(new, old = dbTable("METADATA")$metadataID){
-  new<-new$metadataID
-  newMet<- unique(new)
+  new <-new$metadataID
+  newMet <- unique(new)
   
   if(all(unique(new) %in% old)){
-    print("All metadata in METADATA", quote = F)
+    message("All metadata in METADATA", quote = F)
   }else{
     print("Good metadata:", quote = F)
     print(newMet[newMet %in% old], quote = F)
@@ -33,10 +43,17 @@ checkMet<- function(new, old = dbTable("METADATA")$metadataID){
   }
 }
 
-
+#' Parse sampleID's. KG NOTE: The <<- assignment here is not good practice; should assign to variables within the function and then have an object get returned. But I don't want to mess up existing workflows, so I'm leaving it like this for now.
+#' 
+#' @param table A data frame
+#' @param part Which part of the sampleID do you want to retrieve?
+#' @param fish TRUE/FALSE is this a fish sampleID?
+#' @return Parsed sampleID portion.
+#' @export
+#' 
 #parse sampleIDs
 parseSampleID<- function(table, part, fish = FALSE){
-  sID<- table$sampleID
+  sID <- table$sampleID # get the sampleID's
   x<<- case_when(part == "lakeID" ~ word(sID,1,1,sep="_"),
               part == "siteName" ~ word(sID,2,2,sep="_"),
               part == "siteID" ~ word(sID,1,2,sep="_"),
@@ -52,12 +69,18 @@ parseSampleID<- function(table, part, fish = FALSE){
               TRUE ~ "help")
 }
 
-
-#check sampleID string
+#' Attempt to recreate sampleID's from component parts. KG note: I'm not super clear on how this function works. It gets the component parts from the sampleID itself, rather than taking them from other columns, so under what circumstances would the sampleID not be able to be re-created?
+#' 
+#' @param table A data frame
+#' @param fish TRUE/FALSE is this a fish sampleID?
+#' @return Messages telling you whether the sampleID's can be re-created.
+#' @export
+#' 
 recreateSampleIDs<- function(table, fish = FALSE){
-  siteID<-parseSampleID(table, "siteID", fish = fish)
-  dateID<-parseSampleID(table, "dateID", fish = fish)
-  timeID<-parseSampleID(table, "timeID", fish = fish)
+  # Get each portion of the sampleID, using parseSampleID above. 
+  siteID <-parseSampleID(table, "siteID", fish = fish)
+  dateID <-parseSampleID(table, "dateID", fish = fish)
+  timeID <-parseSampleID(table, "timeID", fish = fish)
   if(fish == TRUE){
     gear<-parseSampleID(table, "gear", fish = fish)
   }else{
@@ -81,6 +104,13 @@ recreateSampleIDs<- function(table, fish = FALSE){
   }
 }
 
+#' Check that all INFO ID's are in SAMPLES
+#' 
+#' @param info A data frame, e.g. FISH_INFO.
+#' @param sample A data frame, e.g. FISH_SAMPLES.
+#' @return Messages about whether or not all the ID's from INFO are also present in SAMPLES.
+#' @export
+#' 
 #check that all INFO ID's are in SAMPLES
 checkINFO<-function(info, sample){
   infoIDs<-unique(info$sampleID)
@@ -97,6 +127,8 @@ checkINFO<-function(info, sample){
   }
 }
 
+# XXX ---------------------------------------------------------------------
+# KG note: I've stopped documenting here. If you want to document the rest of these functions, follow the format shown above, and refer to [this resource](https://www.google.com/search?q=r+package+documentation+how-do&oq=r+package+documentation+how-do&aqs=chrome..69i57j33i22i29i30l5.2756j0j7&sourceid=chrome&ie=UTF-8) for instructions on documenting package functions.
 
 #check for duplicates
 checkDuplicates<- function(table, column){
