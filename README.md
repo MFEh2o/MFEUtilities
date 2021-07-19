@@ -1,5 +1,14 @@
-# utilities
-Repository for useful functions custom-built to work with MFE database
+# MFE_Utilities
+
+This repository is an **R package**. It was created by Kaija Gahm in 2020 and 2021. 
+
+Unfortunately, I (Kaija) wasn't able to finalize the package before leaving. So here, I'm going to outline what I've done so far, my reasons for creating an R package (instead of just a collection of scripts), and some instructions for how to carry this forward if desired.
+
+## Background
+
+When I arrived at MFE, there were two high-level GitHub repositories for interfacing with the MFE database.
+The main repository was (and still is) [db](https://github.com/MFEh2o/db). **db** contains the main [issue tracker](https://github.com/MFEh2o/db/issues) for the MFE database.
+But it also contains some R scripts
 
 Be sure you have up-to-date versions of the scripts for interfacing with the databases from the MFEh2o/db repository
 
