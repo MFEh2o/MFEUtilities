@@ -5,13 +5,22 @@
 #' @param con An SQLite() database connection, created with `dbConnect()`.
 #' @return Returns a named list. Each element of the list is a data frame (a subset of a database table), named after the database table it comes from. Each element contains only the rows that match your criteria. For example, if `column` was "metadataID" and `values` was c("foo", "bar"), then each element will contain only rows where the metadataID is either "foo" or "bar".
 #' @examples
-#' library(RSQLite) 
-#' con <- dbConnect(SQLite(), here("currentDB", "MFEdb.db")) # establish a database connection
-#' getData(column = "metadataID", values = c("DOC.20110601", "Color.20110601"), con) # get all rows in any database table that have either of the two metadataID's shown.
-#' getData(column = "sampleID", values = c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517"), con) # Get all rows from all tables where these sampleID's show up.
+#' #library(RSQLite) 
+#' #con <- dbConnect(SQLite(), here("currentDB", "MFEdb.db")) # establish a 
+#' #database connection
+#' #getData(column = "metadataID", values = c("DOC.20110601", "Color.20110601"), 
+#' #con) # get all rows in any database table that have either of the two 
+#' #metadataID's shown.
+#' #getData(column = "sampleID", values = 
+#' #c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", 
+#' #"RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", 
+#' #"RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517"), con) # Get 
+#' #all rows from all tables where these sampleID's show up.
 #' # You can also pass a vector to the `values` argument. 
-#' ids <- c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517")
-#' getData(column = "sampleID", values = ids, con)
+#' #ids <- c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", 
+#' #"RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", 
+#' #"RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517")
+#' #getData(column = "sampleID", values = ids, con)
 #' @export
 
 getData <- function(column, values, con){

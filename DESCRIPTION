@@ -1,4 +1,4 @@
-Package: utilities
+Package: MFEUtilities
 Title: Utility functions for the MFE Database
 Version: 0.0.0.9000
 Authors@R: 
@@ -7,7 +7,7 @@ Authors@R:
            role = c("aut", "cre"),
            email = "gahmk@caryinstitute.org",
            comment = c())
-Description: This is a package designed to contain several "check" functions that will be useful for maintaining the MFE database.
+Description: This is a package designed to contain utility functions that will be useful for maintaining the MFE database and performing some common computations. It's deisgned for use by MFE project team members in association with the MFE database.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true

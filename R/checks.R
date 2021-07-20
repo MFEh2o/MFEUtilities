@@ -219,6 +219,7 @@ timeTravel <- function(df){
 #' `sameTime` checks whether there are any rows where `dateTimeSet` is equal to `dateTimeSample`. The function also verifies that `df` is a data frame and has `dateTimeSet` and `dateTimeSample` columns.
 #' 
 #' @param df A data frame to check
+#' @param excludeZero Logical
 #' @return ID's of rows that have mismatched dates.
 #' @export
 sameTime <- function(df, excludeZero = F){

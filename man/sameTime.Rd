@@ -8,6 +8,8 @@ sameTime(df, excludeZero = F)
 }
 \arguments{
 \item{df}{A data frame to check}
+
+\item{excludeZero}{Logical}
 }
 \value{
 ID's of rows that have mismatched dates.

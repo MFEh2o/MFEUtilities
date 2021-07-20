@@ -20,11 +20,20 @@ Returns a named list. Each element of the list is a data frame (a subset of a da
 Get data in all database tables that matches specific criteria. For example, pull all data that has one of a set of metadataID's, projectID', etc. First, we connect to the database and list out all the names of the tables contained in it. Then, for each table in that list, we look through its column names to see if they contain the desired column. If they do, we filter that table to get rows associated with the metadataID(s) in question. Then we store those in a list. Then, for each database table name in the list, we query the database to get all rows of that table with the desired values in the target column.
 }
 \examples{
-library(RSQLite) 
-con <- dbConnect(SQLite(), here("currentDB", "MFEdb.db")) # establish a database connection
-getData(column = "metadataID", values = c("DOC.20110601", "Color.20110601"), con) # get all rows in any database table that have either of the two metadataID's shown.
-getData(column = "sampleID", values = c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517"), con) # Get all rows from all tables where these sampleID's show up.
+#library(RSQLite) 
+#con <- dbConnect(SQLite(), here("currentDB", "MFEdb.db")) # establish a 
+#database connection
+#getData(column = "metadataID", values = c("DOC.20110601", "Color.20110601"), 
+#con) # get all rows in any database table that have either of the two 
+#metadataID's shown.
+#getData(column = "sampleID", values = 
+#c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", 
+#"RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", 
+#"RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517"), con) # Get 
+#all rows from all tables where these sampleID's show up.
 # You can also pass a vector to the `values` argument. 
-ids <- c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", "RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517")
-getData(column = "sampleID", values = ids, con)
+#ids <- c("RB_DeepHole_20110613_1130_point_5_ZoopSurv.Sample.20110517", 
+#"RB_DeepHole_20110613_1130_point_4.5_ZoopSurv.Sample.20110517", 
+#"RB_DeepHole_20110613_1130_point_4_ZoopSurv.Sample.20110517")
+#getData(column = "sampleID", values = ids, con)
 }

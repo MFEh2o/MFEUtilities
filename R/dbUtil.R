@@ -30,9 +30,11 @@ lookForDB <- function(path, db){
 #' @param dbname A character string containing the name of the .db file you want to access. By default, the globally-defined `db` variable is used.
 #' @return A vector of table names
 #' @examples
-#' dbdir <- here("currentDB")
-#' db <- "MFEdb.db" # though note that it's best practice to specify a database version with date attached.
-#' dbTableList(dbdir, db) # in this case, equivalent to dbTableList() or dbTableList(fpath = dbdir, dbname = db)
+#' #dbdir <- here("currentDB")
+#' #db <- "MFEdb.db" # though note that it's best practice to specify 
+#' # a database version with date attached.
+#' #dbTableList(dbdir, db) # in this case, equivalent to dbTableList() 
+#' # or dbTableList(fpath = dbdir, dbname = db)
 #' @export
 
 # listing table names in MFE database 
@@ -46,10 +48,10 @@ dbTableList<-function(fpath = dbdir,
   con <- DBI::dbConnect(drv, dbname = file.path(fpath, dbname)) 
   
   #List tables in database
-  tables <- dbListTables(con) 
+  tables <- DBI::dbListTables(con) 
   
   # Disconnect from the database
-  dbDisconnect(con)
+  DBI::dbDisconnect(con)
   
   # Return the vector of table names
   return(tables)
@@ -104,7 +106,7 @@ dbTableSummary<-function(table, cols=c("lakeID","depthClass"),
     print(sort(unique(table[,cols[i]])),quote=FALSE)
   }
   # Disconnect from the database
-  dbDisconnect(con)
+  DBI::dbDisconnect(con)
 }
 
 #' Import an MFE database table, and (optionally) do a little bit of querying.
@@ -121,14 +123,14 @@ dbTableSummary<-function(table, cols=c("lakeID","depthClass"),
 dbTable <- function(table, lakeID = c(), depthClass = c(),
                   fpath = dbdir, dbname = db){
   table <- as.character(table)
-  drv <- SQLite() #create driver object
+  drv <- RSQLite::SQLite() #create driver object
   # Check that the db exists
   lookForDB(fpath, dbname) # check whether database exists; if not, throw an error
   # Open a database connection
-  con <- dbConnect(drv,dbname=file.path(fpath,dbname))
+  con <- DBI::dbConnect(drv,dbname=file.path(fpath,dbname))
   
   # Query an entire table
-  table<-dbGetQuery(con,paste("SELECT * FROM", table)) #note that capitalization doesn't matter so LAKES=lakes
+  table<-DBI::dbGetQuery(con,paste("SELECT * FROM", table)) #note that capitalization doesn't matter so LAKES=lakes
   if(!is.null(lakeID)){
     table<-table[table$lakeID%in%lakeID,]
   }
@@ -163,11 +165,11 @@ dbTable <- function(table, lakeID = c(), depthClass = c(),
   } 
   
   ### Fix NA strings
-  table <- table %>% #change "" and "NA" to actual NA (written as <NA> in character/factor vectors to distinguish from "NA")
-    mutate_if(is.character, list(~na_if(., ""))) %>% # 
-    mutate_if(is.character, list(~na_if(., "NA")))
+  table <- table %>% #change "" and "NA" to actual NA (written as <NA> in character/factor vectors to distinguish from "NA") 
+    dplyr::mutate(across(is.character(), .f = function(x){ na_if(x, "")}),
+           across(is.character(), .f = function(x){na_if(x, "NA")}))
   
   # Disconnect from the database
-  dbDisconnect(con)
+  DBI::dbDisconnect(con)
   return(table)
 }

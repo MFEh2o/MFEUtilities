@@ -1,4 +1,372 @@
-#' Functionality for generating lake metabolism estimates from MFE database. Putting Solomon metabolism code into a function and adding some options for different K models. Also allows for pulling input data directly from MFE sensor database.
+# MFE metabolism function
+
+## Support Functions
+#' Floor Mins
+#' Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)
+#' @param dataIn A data frame
+#' @return A vector
+#' @export
+floorMins <- function(dataIn){
+  #Pull out datetime column and name it x
+  x <- dataIn$datetime
+  nRows <- length(x)
+  #Truncate each datetime to hour; convert to class numeric
+  floorHour <- as.POSIXct(trunc(x[1:nRows],"hour"),tz="America/Chicago")
+  floorNumeric <- as.numeric(floorHour)
+  #Create sequence from floorNumeric to next hour by timeStep (in seconds)
+  seqSec <- seq(0,3600,60*timeStep)
+  #Create matrix where each row is floorNumeric + the elements of seqSec
+  matSec <- matrix(rep(seqSec,nRows),nrow=nRows,byrow=T)
+  matSec <- floorNumeric + matSec
+  #Calculate abs(time difference) between each element of x and the timeStep intervals
+  difs <- abs(as.numeric(x) - matSec)
+  #Find the minimum absolute difference in each row and select the corresponding time from matSec
+  whichMin <- apply(difs,1,which.min)
+  rowNames <- as.numeric(rownames(data.frame(whichMin)))
+  matIndex <- (whichMin-1)*nRows + rowNames
+  matSecFlat <- matrix(matSec,ncol=1)
+  outTime <- as.POSIXct(matSecFlat[matIndex],origin="1970-01-01",tz="America/Chicago")
+  #Return outTime
+  return(outTime)
+}
+
+#' Find Not Dup Rows
+#' Function to find duplicate datetime stamps. Returns the indices of rows where the datetime is NOT a duplicate of the datetime in a previous row. 
+#' @param dataInName character, e.g. "dataPAR"
+#' @return A vector, indices of rows where the datetime is NOT a duplicat of the datetime in a previous row.
+#' @export
+findNotDupRows <- function(dataInName){
+  dataIn <- eval(parse(text=dataInName))
+  #Find duplicated time stamps
+  dups <- duplicated(dataIn$datetime)
+  #If no duplicated time stamps, notDupRows=all rows in dataIn
+  if (all(dups==FALSE)){
+    notDupRows <- c(1:dim(dataIn)[1])
+  }else{
+    #If at least one time stamp is duplicated, warn, and notDupRows is indexes
+    #of rows where datetime is not duplicate of the datetime in a previous row
+    notDupRows <- which(dups==FALSE)
+    nDups <- dim(dataIn)[1]-length(notDupRows)
+    print(paste("Warning:",nDups,"rows with duplicate time stamps in",dataInName,"will be removed"))
+  }
+  #Return dupRows
+  return(notDupRows)
+}
+
+#' Calculate Z Mix Density
+#' Using density instead of temp to indicate mixed layer, (though note that objects in this script are still labeled e.g. 'temps', not 'dens')
+#' @param dataIn A density profile. First column is datetime, POSIXct. Second and subsequent columns are density (kg m-3) at depth. Column headers for these columns are e.g. temp0, temp0.5, temp1.0, temp2, temp2.3
+#' @param thresh Threshold density change to indicate end of mixed layer. Units (kg m-3) m-1. Defaults to 0.075 (value Jordan Read is using in their project)
+#' @return A data frame. First column is datetime, second column is zMix calculated at that datetime.
+#' @export
+calcZMixDens <- function(dataIn, thresh = 0.075){
+  #Useful things
+  nObs <- dim(dataIn)[1]
+  nCols <- dim(dataIn)[2]
+  
+  #Extract vector of depths from column names of dataIn
+  depths <- as.numeric(substr(colnames(dataIn)[2:nCols],5,10))
+  # depths=c(0.1,2.0,3.0,4.0,10.0)
+  
+  #Set up structure to hold calculated metaDepth for each time point
+  metaDepthOut <- data.frame(datetime=dataIn$datetime,zMix=rep(NA,nObs))
+  
+  #Calculate zMix for each time in dataIn
+  for (i in 1:nObs){
+    #If all temp data at this time point are NA, return NA for zMix at this time
+    if (all(is.na(dataIn[i,2:nCols]))){
+      metaDepthOut[i,2] <- NA
+      next
+    }
+    
+    #Get vectors of depths and temps, excluding cols where temp is NA
+    temps <- unlist(dataIn[i,2:nCols])
+    DEPTHS <- depths[!(is.na(temps))]
+    TEMPS <- temps[!(is.na(temps))]
+    
+    #Find change in depth, change in temp, and change in temp per depth
+    dz <- diff(DEPTHS)
+    dT <- diff(TEMPS)
+    dTdz <- dT/dz
+    
+    #If no rate of change exceeds thresh, return max depth for zMix at this time
+    if (all(dTdz<thresh)){
+      metaDepthOut[i,2] <- max(depths)
+      next
+    }
+    
+    #Identify first depth where rate of change exceeds thresh
+    whichFirstBigChange <- min(which(dTdz >= thresh))
+    metaDepth <- mean(c(DEPTHS[whichFirstBigChange],DEPTHS[(whichFirstBigChange+1)]))
+    
+    #Save result to metaDepthOut
+    metaDepthOut[i,2] <- metaDepth
+  }
+  
+  #Return metaDepthOut
+  return(metaDepthOut)
+}
+
+
+
+#Inputs
+# dataIn:     A data.frame with two columns, first is "datetime", second is data
+# maxLength:  Maximum length of NA string that you are willing to interpolate across.
+#             NOTE that this is given in minutes
+# timeStep:   The time step of the data
+
+#' Fill Holes
+#' Linearly interpolate values for strings (up to specified length) of missing data. Created by CTS, 31 July 2009.
+#' @param dataIn: A data frame with two columns, first is "datetime", second is data
+#' @param maxLength: Maximum length of NA string that you are willing to interpolate across. NOTE that this is given in minutes.
+#' @param timeStep The time step of the data.
+#' @return A data frame with same format as dataIn, but with values interpolated.
+#' @export
+fillHoles <- function(dataIn, maxLength, timeStep){
+  
+  #Number of rows in dataIn
+  nObs <- dim(dataIn)[1]
+  
+  #Express maxLength as number of time steps instead of number of minutes
+  maxLength <- maxLength/timeStep
+  
+  #Temporarily replace NAs in data with -99999
+  whichNA <- which(is.na(dataIn[,2]))
+  if(length(whichNA)){
+    dataIn[whichNA,2] <- -99999
+  }
+  #Identify strings of NA (-99999) values
+  rleOut <- rle(dataIn[,2])
+  which9 <- which(rleOut$values == -99999)
+  
+  #If no NA strings in data, return dataIn
+  if (length(which9) == 0){
+    return(dataIn)
+  }else{
+    #Otherwise, continue
+    
+    #Interpolate valus for each string of NA values
+    for (i in 1:length(which9)){
+      
+      #Determine start and end index of string i, and calculate length of string
+      if (which9[i]==1){
+        stringStart <- 1
+      } else{
+        stringStart <- 1 + sum(rleOut$lengths[1:(which9[i]-1)])
+      }
+      
+      stringEnd <- sum(rleOut$lengths[1:which9[i]])
+      stringLength <- stringEnd-stringStart+1
+      
+      #Skip to next i if:
+      #  -length of string exceeds maxLength,
+      #  -stringStart is the first obs in dataIn
+      #  -stringEnd is the last obs in dataIn
+      if (stringLength > maxLength | stringStart==1 | stringEnd==nObs) next else{
+        
+        #Linearly interpolate missing values
+        interp <- approx(x=c(dataIn[stringStart-1,"datetime"],dataIn[stringEnd+1,"datetime"]),
+                         y=c(dataIn[stringStart-1,2],dataIn[stringEnd+1,2]),
+                         xout=dataIn[stringStart:stringEnd,"datetime"],
+                         method="linear")
+        dataIn[stringStart:stringEnd,2] <- interp$y
+      }
+    }
+    
+    #Replace any remaining -99999 with NA
+    dataIn[which(dataIn[,2]==-99999),2] <- NA
+    
+    #Return result
+    return(dataIn)
+  }
+}
+
+#' Metab Predix Version 4
+#' Return DOHat, residuals, atmFlux, and NLL given par estimates. Created by CTS, 18 August 2009.
+#' @param parsIn A vector of parameters.
+#' @param dataIn A data frame
+#' @return A data frame
+#' @export 
+metabPredix_v4 <- function (parsIn, dataIn) {
+  ## Inputs
+  #Unpack parameters and exponentiate to force positive,
+  iota <- exp(parsIn[1])
+  rho <- exp(parsIn[2])
+  DOInit <- exp(parsIn[3])
+  
+  #Label useful things
+  nObs <- dim(dataIn)[1]
+  kO2 <- dataIn$kO2
+  DOSat <- dataIn$DOSat
+  zMix <- dataIn$zMix
+  irr <- dataIn$irr
+  DOObs <- dataIn$DOObs
+  fluxDummy <- dataIn$fluxDummy
+  
+  ##
+  #Calculate predictions and residuals
+  
+  #Set up output
+  DOHat <- rep(NA,nObs)
+  atmFlux <- rep(NA,nObs)  
+  #Initialize DOHat
+  DOHat[1] <- DOInit
+  
+  #Calculate atmFlux and predicted DO for each time point
+  #Fluxes out of lake have negative sign
+  for (i in 1:(nObs-1)) {
+    atmFlux[i] <- fluxDummy[i] * -kO2[i] * (DOHat[i] - DOSat[i]) / zMix[i]  
+    DOHat[i+1] <- DOHat[i] + iota*irr[i] - rho + atmFlux[i]
+  }
+  
+  #Compare observed and predicted DO; calculate residuals and NLL
+  #Exclude from calculation any cases where DOObs=NA
+  if (any(is.na(DOObs)))
+  {
+    NAObs <- which(is.na(DOObs))
+    res <- DOObs[-NAObs] - DOHat[-NAObs]
+  } else
+    
+  {
+    res <- DOObs - DOHat
+  }
+  
+  nRes <- length(res)
+  SSE <- sum(res^2)
+  sigma2 <- SSE/nRes
+  NLL <- 0.5*((SSE/sigma2) + nRes*log(2*pi*sigma2))
+  
+  #Set up output structure
+  dataOut <- list(atmFlux=atmFlux,DOHat=DOHat,res=res,NLL=NLL)
+  
+  #Return dataOut
+  return(dataOut)
+}
+
+#' Metab Loss, Version 4
+#' Estimating Metabolism from DO data. This function calculates the likelihoods; use in conjunction with an optimization routine to minimize NLL. Use this for one day's data at a time. Created by CTS, 29 January 2009. Version 4 created August 2009.
+#' @param dataIn A data frame, which includes the following columns: DOObs: DO (mg/L); DOSat: DO at saturation (mg/L); irr: irradiance (PAR) (mmol m-2 s-1) >>>> note that GLEON data may actually be in umol; check; kO2: piston velocity for O2, m (timeStep)-1; zMix: depth of the mixed layer (m); fluxDummy: 0 if zMix is above DO sensor depth (prevents atm flux); 1 otherwise.
+#' @param parsIn A vector of parameters. First element is `iota` (primary productivity per unit of PAR; units are (mg L-1 timeStep-1) / (mmol m-2 s-1)). Second element is `rho` (nighttime respiration; units are (mg L-1 (timeStep)-1)). Third element is DOInit (initial DOHat value; units are mg L-1). TimeStep is the number of minutes between observations. `parsIn` is given in log units.
+#' @return NLL, which is a scalar (I think? -KG)
+#' @export
+metabLoss_v4 <- function (parsIn, dataIn) {
+  ##Inputs
+  #Unpack parameters and exponentiate to force positive
+  iota <- exp(parsIn[1])
+  rho <- exp(parsIn[2])
+  DOInit <- exp(parsIn[3])
+  
+  #Label useful things
+  nObs <- dim(dataIn)[1]
+  kO2 <- dataIn$kO2
+  DOSat <- dataIn$DOSat
+  zMix <- dataIn$zMix
+  irr <- dataIn$irr
+  DOObs <- dataIn$DOObs
+  fluxDummy <- dataIn$fluxDummy
+  
+  
+  ##
+  #Calculate predictions and residuals
+  
+  #Set up output
+  DOHat <- rep(NA,nObs)
+  atmFlux <- rep(NA,nObs)  
+  #Initialize DOHat
+  DOHat[1] <- DOInit
+  
+  #Calculate atmFlux and predicted DO for each time point
+  #Fluxes out of lake have negative sign
+  for (i in 1:(nObs-1)) {
+    atmFlux[i] <- fluxDummy[i] * -kO2[i] * (DOHat[i] - DOSat[i]) / zMix[i]  
+    DOHat[i+1] <- DOHat[i] + iota*irr[i] - rho + atmFlux[i]
+  }
+  
+  #Compare observed and predicted DO; calculate residuals and NLL
+  #Exclude from calculation any cases where DOObs=NA
+  if (any(is.na(DOObs))){
+    NAObs <- which(is.na(DOObs))
+    res <- DOObs[-NAObs] - DOHat[-NAObs]
+  } else{
+    res <- DOObs - DOHat
+  }
+  
+  nRes <- length(res)
+  SSE <- sum(res^2)
+  sigma2 <- SSE/nRes
+  NLL <- 0.5*((SSE/sigma2) + nRes*log(2*pi*sigma2))
+  
+  #Return NLL
+  return(NLL)
+}
+
+
+#' Bootstrap Metabolism
+#' Bootstrapping function for metabolism model; JAZ 2014-11-3; modified from Winslow and GLEON fellows 
+#' @param parGuess A guessed parameter to start with? (Not sure this is right -KG)
+#' @param dataTemp A data frame
+#' @param n Number of bootstrap iterations; default is 1000.
+#' @param ar1.resids Logical; whether or not to maintain the ar1 component of the residuals.
+#' @return A data frame
+#' @export
+bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE){
+  
+  n.obs = length(dataTemp$DOObs)
+  
+  doHat  = metabPredix_v4(optimTemp$par,dataTemp)$DOHat
+  resids = dataTemp$DOObs - doHat
+  
+  #If we are maintaining the ar1 component of the residuals, 
+  # we must estimate ar1 coeff and the ar1 residual standard deviation
+  if(ar1.resids){
+    ar1.lm    = lm(resids[1:n.obs-1] ~ resids[2:n.obs]-1)
+    ar1.coeff = ar1.lm$coefficients
+    ar1.sd    = sd(ar1.lm$residuals)
+  }
+  
+  #Pre-allocate the result data frame
+  result <- data.frame(boot.iter = 1:n,
+                       iota = rep(NA,n),
+                       rho = rep(NA,n),
+                       DOInit = rep(NA,n),
+                       covergence = rep(NA,n),
+                       nll = rep(NA,n),
+                       GPP = rep(NA,n))
+  
+  for(i in 1:n){
+    #Randomize the residuals using one of two methods
+    if(ar1.resids){ #residual randomization keeping the ar1 data structure
+      simRes = rep(NA, n.obs)
+      simRes[1] = sample(resids[!is.na(resids)],1)
+      for(j in 2:n.obs){
+        simRes[j] = ar1.coeff*simRes[j-1] + rnorm(n=1, sd=ar1.sd)
+      }
+      
+    }else{ #Raw residual randomization
+      #Randomize residuals without replacement
+      simRes = sample(resids[!is.na(resids)], length(resids), replace=FALSE) 
+    }
+    
+    doSim = doHat + simRes
+    
+    #Run optim again with new simulated DO signal
+    dataBoot<-dataTemp
+    dataBoot$DOObs<-doSim
+    optimTemp <- optim(parGuess,metabLoss_v4,dataIn=dataBoot)
+    
+    result[i,2:3] <- exp(optimTemp$par[1:2])*(1440/timeStep) #iota and rho to units of mg O2 L-1 day-1 
+    result[i,4] <- exp(optimTemp$par[3]) #initial DO estimate 
+    result[i,5] <- optimTemp$convergence  #did model converge or not (0=yes, 1=no)
+    result[i,6] <- optimTemp$value #value of nll 
+    result[i,7] <- (result[i,2]/(60*60*24))*sum(dataTemp$irr)*timeStep*60 #GPP in units of mg O2 L-1 d-1 
+  }
+  
+  return(result)
+}
+
+
+#' mfeMetab
+#' Functionality for generating lake metabolism estimates from MFE database. Putting Solomon metabolism code into a function and adding some options for different K models. Also allows for pulling input data directly from MFE sensor database. WARNING! This function makes some modifications to your R workspace, which isn't best practice for R package functions. I don't have time to fix it now. It sets the system time zone, and it also saves your workspace to an .Rdata file. Use caution. -KG
 #' SEJ with code from CTS, JAZ, CRO, and CJT
 #' @param lakeID Lake to estimate metabolism for
 #' @param minDate First date to estimate metabolism for
@@ -16,463 +384,39 @@
 #' @param sensorDepth Depth of DO sensor, m; defaults to UNDERC (0.7?)
 #' @param outName Text to use in lableing outputs, e.g. 'Acton2008'. Character. No default.
 #' @export
-
 #Load required packages
 library(LakeMetabolizer)
-library(reshape2)
-
-#For troubleshooting:
-#maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
 mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
                      k = "cole&caraco", fluxDummyToggle = TRUE, 
                      bootstrap = 'no', lat = 46.16, elev = 535, windHeight = 2,
                      timeStep = 10, sensorDepth = 0.7){
-  
-  #### support functions
-  #Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)
-  floorMins <- function(dataIn)
-  {
-    #Pull out datetime column and name it x
-    x <- dataIn$datetime
-    nRows <- length(x)
-    #Truncate each datetime to hour; convert to class numeric
-    floorHour <- as.POSIXct(trunc(x[1:nRows],"hour"),tz="America/Chicago")
-    floorNumeric <- as.numeric(floorHour)
-    #Create sequence from floorNumeric to next hour by timeStep (in seconds)
-    seqSec <- seq(0,3600,60*timeStep)
-    #Create matrix where each row is floorNumeric + the elements of seqSec
-    matSec <- matrix(rep(seqSec,nRows),nrow=nRows,byrow=T)
-    matSec <- floorNumeric + matSec
-    #Calculate abs(time difference) between each element of x and the timeStep intervals
-    difs <- abs(as.numeric(x) - matSec)
-    #Find the minimum absolute difference in each row and select the corresponding time from matSec
-    whichMin <- apply(difs,1,which.min)
-    rowNames <- as.numeric(rownames(data.frame(whichMin)))
-    matIndex <- (whichMin-1)*nRows + rowNames
-    matSecFlat <- matrix(matSec,ncol=1)
-    outTime <- as.POSIXct(matSecFlat[matIndex],origin="1970-01-01",tz="America/Chicago")
-    #Return outTime
-    return(outTime)
-  }
-  
-  #Function to find duplicate datetime stamps
-  findNotDupRows <- function(dataInName)
-  {
-    #This function returns the indexes of rows where the datetime is NOT a duplicate
-    #of the datetime in a previous row
-    #dataInName is character, e.g. "dataPAR"
-    dataIn <- eval(parse(text=dataInName))
-    #Find duplicated time stamps
-    dups <- duplicated(dataIn$datetime)
-    #If no duplicated time stamps, notDupRows=all rows in dataIn
-    if (all(dups==FALSE))
-    {
-      notDupRows <- c(1:dim(dataIn)[1])
-    } else
-      #If at least one time stamp is duplicated, warn, and notDupRows is indexes
-      #of rows where datetime is not duplicate of the datetime in a previous row
-    {
-      notDupRows <- which(dups==FALSE)
-      nDups <- dim(dataIn)[1]-length(notDupRows)
-      print(paste("Warning:",nDups,"rows with duplicate time stamps in",dataInName,"will be removed"))
-    }
-    #Return dupRows
-    return(notDupRows)
-  }
-  
-  # calcZMixDens.R --> replace with something from LakeAnalyzeR?
-  #MCV and CTS
-  #Version 27 Aug 2009
-  
-  #Using density instead of temp to indicate mixed layer
-  #Though note that objects in this script are still labeled e.g. 'temps', not 'dens'
-  
-  #Inputs:
-  # dataIn - A density profile.
-  #          -First column is datetime, POSIXct
-  #          -Second and subsequent columns are density (kg m-3) at depth. Column headers
-  #           for these columns are e.g. temp0, temp0.5, temp1.0, temp2, temp2.3
-  # thresh - Threshold density change to indicate end of mixed layer. Units (kg m-3) m-1.
-  #          Defaults to 0.075 (value Jordan Read is using in their project)
-  
-  #Outputs:
-  # metaDepthOut - A data.frame, first column is datetime, second column is zMix calculated at that datetime
-  
-  calcZMixDens <- function(dataIn,thresh=0.075)
-  {
-    
-    #Useful things
-    nObs <- dim(dataIn)[1]
-    nCols <- dim(dataIn)[2]
-    
-    #Extract vector of depths from column names of dataIn
-    depths <- as.numeric(substr(colnames(dataIn)[2:nCols],5,10))
-    # depths=c(0.1,2.0,3.0,4.0,10.0)
-    
-    #Set up structure to hold calculated metaDepth for each time point
-    metaDepthOut <- data.frame(datetime=dataIn$datetime,zMix=rep(NA,nObs))
-    
-    #Calculate zMix for each time in dataIn
-    for (i in 1:nObs)       #nObs
-    {
-      
-      #If all temp data at this time point are NA, return NA for zMix at this time
-      if (all(is.na(dataIn[i,2:nCols])))
-      {
-        metaDepthOut[i,2] <- NA
-        next
-      }
-      
-      #Get vectors of depths and temps, excluding cols where temp is NA
-      temps <- unlist(dataIn[i,2:nCols])
-      DEPTHS <- depths[!(is.na(temps))]
-      TEMPS <- temps[!(is.na(temps))]
-      
-      #Find change in depth, change in temp, and change in temp per depth
-      dz <- diff(DEPTHS)
-      dT <- diff(TEMPS)
-      dTdz <- dT/dz
-      
-      #If no rate of change exceeds thresh, return max depth for zMix at this time
-      if (all(dTdz<thresh))
-      {
-        metaDepthOut[i,2] <- max(depths)
-        next
-      }
-      
-      #Identify first depth where rate of change exceeds thresh
-      whichFirstBigChange <- min(which(dTdz >= thresh))
-      metaDepth <- mean(c(DEPTHS[whichFirstBigChange],DEPTHS[(whichFirstBigChange+1)]))
-      
-      #Save result to metaDepthOut
-      metaDepthOut[i,2] <- metaDepth
-    }
-    
-    #Return metaDepthOut
-    return(metaDepthOut)
-    
-  }
-  
-  
-  # fillHoles
-  #Linearly interpolate values for strings (up to specified length) of missing data
-  #CTS 31 Jul 2009
-  
-  #Inputs
-  # dataIn:     A data.frame with two columns, first is "datetime", second is data
-  # maxLength:  Maximum length of NA string that you are willing to interpolate across.
-  #             NOTE that this is given in minutes
-  # timeStep:   The time step of the data
-  
-  
-  fillHoles <- function(dataIn,maxLength,timeStep){
-    
-    #Number of rows in dataIn
-    nObs <- dim(dataIn)[1]
-    
-    #Express maxLength as number of time steps instead of number of minutes
-    maxLength <- maxLength/timeStep
-    
-    #Temporarily replace NAs in data with -99999
-    whichNA <- which(is.na(dataIn[,2]))
-    if(length(whichNA)){
-      dataIn[whichNA,2] <- -99999
-    }
-    #Identify strings of NA (-99999) values
-    rleOut <- rle(dataIn[,2])
-    which9 <- which(rleOut$values==-99999)
-    
-    #If no NA strings in data, return dataIn
-    if (length(which9)==0)
-    {
-      return(dataIn)
-    } else
-      
-      #Otherwise, continue
-    {
-      
-      #Interpolate valus for each string of NA values
-      for (i in 1:length(which9))
-      {
-        
-        #Determine start and end index of string i, and calculate length of string
-        if (which9[i]==1)
-        {
-          stringStart <- 1
-        } else
-          
-        {
-          stringStart <- 1 + sum(rleOut$lengths[1:(which9[i]-1)])
-        }
-        
-        stringEnd <- sum(rleOut$lengths[1:which9[i]])
-        stringLength <- stringEnd-stringStart+1
-        
-        #Skip to next i if:
-        #  -length of string exceeds maxLength,
-        #  -stringStart is the first obs in dataIn
-        #  -stringEnd is the last obs in dataIn
-        if (stringLength > maxLength | stringStart==1 | stringEnd==nObs) next else
-        {
-          
-          #Linearly interpolate missing values
-          interp <- approx(x=c(dataIn[stringStart-1,"datetime"],dataIn[stringEnd+1,"datetime"]),
-                           y=c(dataIn[stringStart-1,2],dataIn[stringEnd+1,2]),
-                           xout=dataIn[stringStart:stringEnd,"datetime"],
-                           method="linear")
-          dataIn[stringStart:stringEnd,2] <- interp$y
-        }
-      }
-      
-      #Replace any remaining -99999 with NA
-      dataIn[which(dataIn[,2]==-99999),2] <- NA
-      
-      #Return result
-      return(dataIn)
-    }
-    
-  }
-  
-  #metabPredix_v4
-  #Return DOHat, residuals, atmFlux, and NLL given par estimates
-  #CTS 18 Aug 2009
-  
-  metabPredix_v4 <- function (parsIn,dataIn) {
-    
-    ##
-    #Inputs
-    
-    #Unpack parameters and exponentiate to force positive,
-    iota <- exp(parsIn[1])
-    rho <- exp(parsIn[2])
-    DOInit <- exp(parsIn[3])
-    
-    #Label useful things
-    nObs <- dim(dataIn)[1]
-    kO2 <- dataIn$kO2
-    DOSat <- dataIn$DOSat
-    zMix <- dataIn$zMix
-    irr <- dataIn$irr
-    DOObs <- dataIn$DOObs
-    fluxDummy <- dataIn$fluxDummy
-    
-    ##
-    #Calculate predictions and residuals
-    
-    #Set up output
-    DOHat <- rep(NA,nObs)
-    atmFlux <- rep(NA,nObs)  
-    #Initialize DOHat
-    DOHat[1] <- DOInit
-    
-    #Calculate atmFlux and predicted DO for each time point
-    #Fluxes out of lake have negative sign
-    for (i in 1:(nObs-1)) {
-      atmFlux[i] <- fluxDummy[i] * -kO2[i] * (DOHat[i] - DOSat[i]) / zMix[i]  
-      DOHat[i+1] <- DOHat[i] + iota*irr[i] - rho + atmFlux[i]
-    }
-    
-    #Compare observed and predicted DO; calculate residuals and NLL
-    #Exclude from calculation any cases where DOObs=NA
-    if (any(is.na(DOObs)))
-    {
-      NAObs <- which(is.na(DOObs))
-      res <- DOObs[-NAObs] - DOHat[-NAObs]
-    } else
-      
-    {
-      res <- DOObs - DOHat
-    }
-    
-    nRes <- length(res)
-    SSE <- sum(res^2)
-    sigma2 <- SSE/nRes
-    NLL <- 0.5*((SSE/sigma2) + nRes*log(2*pi*sigma2))
-    
-    #Set up output structure
-    dataOut <- list(atmFlux=atmFlux,DOHat=DOHat,res=res,NLL=NLL)
-    
-    #Return dataOut
-    return(dataOut)
-    
-  }
-  
-  
-  #metabLoss_v4
-  #Estimating metabolism from DO data
-  #CTS 29 Jan 2009
-  #Version 4 Aug 2009
-  
-  #This function calculates the likelihoods; use in conjunction
-  #with an optimization routine to minimize NLL
-  
-  #Use this for one day's data at a time
-  
-  #dataIn needs to include the following columns
-  #  DOObs:     DO (mg/L)
-  #  DOSat:     DO at saturation (mg/L)
-  #  irr:       irradiance (PAR) (mmol m-2 s-1) >>>>>note that GLEON data may actually be in umol; check
-  #  kO2:       piston velocity for O2, m (timeStep)-1
-  #  zMix:      depth of the mixed layer (m)
-  #  fluxDummy: 0 if zMix is above DO sensor depth (prevents atm flux); 1 otherwise
-  
-  #Description of parameters
-  #Note timeStep is number of minutes between DO readings
-  #Note units given here are those that the model works with; parsIn is given in log units
-  #  iota   - primary productivity per unit of PAR
-  #           units are (mg L-1 timeStep-1) / (mmol m-2 s-1)
-  #  rho    - nighttime respiration
-  #           units are (mg L-1 (timeStep)-1)
-  #  DOInit - initial DOHat value
-  #           units are mg L-1
-  
-  
-  metabLoss_v4 <- function (parsIn,dataIn) {
-    
-    ##
-    #Inputs
-    
-    #Unpack parameters and exponentiate to force positive
-    iota <- exp(parsIn[1])
-    rho <- exp(parsIn[2])
-    DOInit <- exp(parsIn[3])
-    
-    #Label useful things
-    nObs <- dim(dataIn)[1]
-    kO2 <- dataIn$kO2
-    DOSat <- dataIn$DOSat
-    zMix <- dataIn$zMix
-    irr <- dataIn$irr
-    DOObs <- dataIn$DOObs
-    fluxDummy <- dataIn$fluxDummy
-    
-    
-    ##
-    #Calculate predictions and residuals
-    
-    #Set up output
-    DOHat <- rep(NA,nObs)
-    atmFlux <- rep(NA,nObs)  
-    #Initialize DOHat
-    DOHat[1] <- DOInit
-    
-    #Calculate atmFlux and predicted DO for each time point
-    #Fluxes out of lake have negative sign
-    for (i in 1:(nObs-1)) {
-      atmFlux[i] <- fluxDummy[i] * -kO2[i] * (DOHat[i] - DOSat[i]) / zMix[i]  
-      DOHat[i+1] <- DOHat[i] + iota*irr[i] - rho + atmFlux[i]
-    }
-    
-    #Compare observed and predicted DO; calculate residuals and NLL
-    #Exclude from calculation any cases where DOObs=NA
-    if (any(is.na(DOObs)))
-    {
-      NAObs <- which(is.na(DOObs))
-      res <- DOObs[-NAObs] - DOHat[-NAObs]
-    } else
-      
-    {
-      res <- DOObs - DOHat
-    }
-    
-    nRes <- length(res)
-    SSE <- sum(res^2)
-    sigma2 <- SSE/nRes
-    NLL <- 0.5*((SSE/sigma2) + nRes*log(2*pi*sigma2))
-    
-    #Return NLL
-    return(NLL)
-    
-  }
-  
-  # bootstrap.metab
-  # Bootstrapping function for metabolism model; JAZ 2014-11-3; modified from Winslow and GLEON fellows 
-  
-  bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE){
-    
-    n.obs = length(dataTemp$DOObs)
-    
-    doHat  = metabPredix_v4(optimTemp$par,dataTemp)$DOHat
-    resids = dataTemp$DOObs - doHat
-    
-    #If we are maintaining the ar1 component of the residuals, 
-    # we must estimate ar1 coeff and the ar1 residual standard deviation
-    if(ar1.resids){
-      ar1.lm    = lm(resids[1:n.obs-1] ~ resids[2:n.obs]-1)
-      ar1.coeff = ar1.lm$coefficients
-      ar1.sd    = sd(ar1.lm$residuals)
-    }
-    
-    
-    #Pre-allocate the result data frame
-    result <- data.frame(boot.iter = 1:n,
-                         iota = rep(NA,n),
-                         rho = rep(NA,n),
-                         DOInit = rep(NA,n),
-                         covergence = rep(NA,n),
-                         nll = rep(NA,n),
-                         GPP = rep(NA,n))
-    
-    for(i in 1:n){
-      
-      #Randomize the residuals using one of two methods
-      if(ar1.resids){ #residual randomization keeping the ar1 data structure
-        simRes = rep(NA, n.obs)
-        simRes[1] = sample(resids[!is.na(resids)],1)
-        for(j in 2:n.obs){
-          simRes[j] = ar1.coeff*simRes[j-1] + rnorm(n=1, sd=ar1.sd)
-        }
-        
-      }else{ #Raw residual randomization
-        #Randomize residuals without replacement
-        simRes = sample(resids[!is.na(resids)], length(resids), replace=FALSE) 
-      }
-      
-      doSim = doHat + simRes
-      
-      #Run optim again with new simulated DO signal
-      dataBoot<-dataTemp
-      dataBoot$DOObs<-doSim
-      optimTemp <- optim(parGuess,metabLoss_v4,dataIn=dataBoot)
-      
-      result[i,2:3] <- exp(optimTemp$par[1:2])*(1440/timeStep) #iota and rho to units of mg O2 L-1 day-1 
-      result[i,4] <- exp(optimTemp$par[3]) #initial DO estimate 
-      result[i,5] <- optimTemp$convergence  #did model converge or not (0=yes, 1=no)
-      result[i,6] <- optimTemp$value #value of nll 
-      result[i,7] <- (result[i,2]/(60*60*24))*sum(dataTemp$irr)*timeStep*60 #GPP in units of mg O2 L-1 d-1 
-      
-    }
-    
-    return(result)
-  }
-  
-  
-  
-  
-  
+  #For troubleshooting:
+  #maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
-  #Set environment tz variable to CDT
-  Sys.setenv(tz="America/Chicago")
+  # Set environment tz variable to CDT
+  Sys.setenv(tz = "America/Chicago")
   
   ########################################
-  #Read and organize data from database - assumes database functions have been sourced
-  #DO
+  # Read and organize data from database - assumes database functions have been sourced.
+  # DO
   if(lakeID%in%c("EL","WL")){
-    rawDOmd<-sensordbTable("DO_CORR",lakeID=lakeID,minDate=minDate,maxDate=maxDate)
-    rawDOysi<-sensordbTable("YSI_CORR",lakeID=lakeID,minDate=minDate,maxDate=maxDate)
-    rawDO<-rbind(rawDOmd[,c("dateTime","cleanedDO_mg_L")],rawDOysi[,c("dateTime","cleanedDO_mg_L")])
-    dataDO<-aggregate(x=as.numeric(rawDO$cleanedDO_mg_L),by=list(rawDO$dateTime),FUN=mean,na.rm=TRUE)
-    colnames(dataDO)<-c("datetime","DO")
+    rawDOmd <- sensordbTable("DO_CORR", lakeID = lakeID, minDate = minDate, maxDate = maxDate)
+    rawDOysi <- sensordbTable("YSI_CORR", lakeID=lakeID, minDate = minDate, maxDate = maxDate)
+    rawDO <- rbind(rawDOmd[,c("dateTime","cleanedDO_mg_L")], rawDOysi[,c("dateTime","cleanedDO_mg_L")])
+    dataDO <- aggregate(x = as.numeric(rawDO$cleanedDO_mg_L), by = list(rawDO$dateTime), FUN = mean,
+                        na.rm = TRUE)
+    colnames(dataDO) <- c("datetime", "DO")
   }else{
-    rawDO<-sensordbTable("DO_CORR",lakeID=lakeID,minDate=minDate,maxDate=maxDate)
+    rawDO<-sensordbTable("DO_CORR", lakeID = lakeID, minDate = minDate, maxDate = maxDate)
     dataDO<-rawDO[,c("dateTime","cleanedDO_mg_L")]
     colnames(dataDO)<-c("datetime","DO")
   }
   #Water temp at depth of DO sensor
   if(lakeID%in%c("EL","WL")){
     rawSensorTemp<-rbind(rawDOmd[,c("dateTime","cleanedTemp_C")],rawDOysi[,c("dateTime","cleanedTemp_C")])
-    dataSensorTemp<-aggregate(x=as.numeric(rawSensorTemp$cleanedTemp_C),by=list(rawSensorTemp$dateTime),FUN=mean,na.rm=TRUE)
+    dataSensorTemp<-aggregate(x=as.numeric(rawSensorTemp$cleanedTemp_C),by=list(rawSensorTemp$dateTime),
+                              FUN=mean,na.rm=TRUE)
     colnames(dataSensorTemp)<-c("datetime","TEMP")
   }else{
     dataSensorTemp<-rawDO[,c("dateTime","cleanedTemp_C")]
@@ -482,20 +426,23 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   tempChain<-sensordbTable("HOBO_TCHAIN_CORR",lakeID=lakeID,minDate=minDate,maxDate=maxDate)
   tempChain2<-tempChain[,c("dateTime","depth_m","cleanedTemp_C")]
   colnames(tempChain2)=c('datetime','depth_m','temp')
-  dataTempProfile<-reshape(tempChain2,timevar="depth_m",idvar="datetime",direction="wide",sep="")
+  dataTempProfile<-reshape2::reshape(tempChain2,timevar="depth_m",idvar="datetime",direction="wide",sep="")
   
   metDataEL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="EL",minDate=minDate,maxDate=maxDate)
   metDataWL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="WL",minDate=minDate,maxDate=maxDate)
   metDataFE<-sensordbTable("HOBO_METSTATION_CORR",lakeID="FE",minDate=minDate,maxDate=maxDate)
   metData=rbind(metDataEL,metDataWL, metDataFE)
+  
   #PAR
   #Divide PAR by 1000 to convert from measured units (umol m-2 s-1) to model units (mmol m-2 s-1)
   #made choice to average PAR readings from WL & EL/FE
-  dataPAR<-aggregate(x=as.numeric(metData$cleanedPAR_uE_m2_s),by=list(metData$dateTime),FUN=mean,na.rm=TRUE)
+  dataPAR<-aggregate(x=as.numeric(metData$cleanedPAR_uE_m2_s),by=list(metData$dateTime),
+                     FUN=mean,na.rm=TRUE)
   colnames(dataPAR)=c("datetime","PAR")
   dataPAR$PAR <- dataPAR$PAR/1000
   #Wind speed
-  dataWind<-aggregate(x=as.numeric(metData$cleanedWindSpeed_m_s),by=list(metData$dateTime),FUN=mean,na.rm=TRUE)
+  dataWind<-aggregate(x=as.numeric(metData$cleanedWindSpeed_m_s),by=list(metData$dateTime),
+                      FUN=mean,na.rm=TRUE)
   colnames(dataWind)=c("datetime","WS")
   
   ##
@@ -691,7 +638,8 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   {
     dataTemp <- dataTempProfile[,c(1,i)]
     dataTemp[,2]=as.numeric(dataTemp[,2])
-    dataTempFilled <- fillHoles(dataTemp,maxLength=1000000,timeStep=timeStep)	#***** set maxLength to enable long interpolations or not
+    #***** set maxLength to enable long interpolations or not
+    dataTempFilled <- fillHoles(dataTemp,maxLength=1000000,timeStep=timeStep)	
     dataTempProfile[,i] <- dataTempFilled[,2]
   }
   
@@ -701,7 +649,8 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   #If temperature measured at only one depth, use maxZMix as zMix at every time
   if (ncol(dataTempProfile) <= 2)
   {
-    dataZMix <- data.frame(datetime=dataTempProfile$datetime,zMix=rep(maxZMix,length(dataTempProfile$datetime)))
+    dataZMix <- data.frame(datetime=dataTempProfile$datetime,
+                           zMix=rep(maxZMix,length(dataTempProfile$datetime)))
   } else
     
     #Otherwise calculate zMix from data
@@ -899,9 +848,7 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   ##
   #Run optimization for each day
   
-  for (i in 1:nDays)
-  {
-    
+  for (i in 1:nDays){
     #Print occasional progress report on i
     if (i %in% seq(1,nDays,10)) {print(paste("Starting day",i))}
     
@@ -913,8 +860,7 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
     # return NA for optimization results and plot blank plots
     nTot <- length(dataTemp$DOObs)
     nNA <- length(which(is.na(dataTemp$DOObs)))
-    if ((nTot<(24*60/timeStep*0.75)) | (nNA/nTot > 0.30) |  any(is.na(dataTemp[,3:6])))
-    {
+    if ((nTot<(24*60/timeStep*0.75)) | (nNA/nTot > 0.30) |  any(is.na(dataTemp[,3:6]))){
       optimOut[i,2:6] <- NA
       frame(); frame()
       next
@@ -924,7 +870,11 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
     {
       
       #For guess of initial DOHat, use first obs unless that is NA, in which case use min obs
-      if (is.na(dataTemp$DOObs[1])==F) {DOInit <- dataTemp$DOObs[1]} else {DOInit <- min(dataTemp$DOObs,na.rm=T)}
+      if (is.na(dataTemp$DOObs[1])==F){
+        DOInit <- dataTemp$DOObs[1]
+      }else{
+          DOInit <- min(dataTemp$DOObs,na.rm=T)
+          }
       
       #Find parameter values by minimizing nll
       parGuess <- log(c(iotaGuess,rhoGuess,DOInit))

@@ -18,7 +18,9 @@ A vector of table names
 List names of the tables in the MFE database
 }
 \examples{
-dbdir <- here("currentDB")
-db <- "MFEdb.db" # though note that it's best practice to specify a database version with date attached.
-dbTableList(dbdir, db) # in this case, equivalent to dbTableList() or dbTableList(fpath = dbdir, dbname = db)
+#dbdir <- here("currentDB")
+#db <- "MFEdb.db" # though note that it's best practice to specify 
+# a database version with date attached.
+#dbTableList(dbdir, db) # in this case, equivalent to dbTableList() 
+# or dbTableList(fpath = dbdir, dbname = db)
 }
