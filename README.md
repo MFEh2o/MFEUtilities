@@ -1,4 +1,4 @@
-# MFE_Utilities
+# MFEUtilities
 
 This repository is an **R package**. It was created by Kaija Gahm in 2020 and 2021. 
 
