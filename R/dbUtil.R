@@ -166,8 +166,8 @@ dbTable <- function(table, lakeID = c(), depthClass = c(),
   
   ### Fix NA strings
   table <- table %>% #change "" and "NA" to actual NA (written as <NA> in character/factor vectors to distinguish from "NA") 
-    dplyr::mutate(across(is.character(), .f = function(x){ na_if(x, "")}),
-           across(is.character(), .f = function(x){na_if(x, "NA")}))
+    dplyr::mutate(dplyr::across(where(is.character), dplyr::na_if, ""),
+           dplyr::across(where(is.character), dplyr::na_if, "NA"))
   
   # Disconnect from the database
   DBI::dbDisconnect(con)
