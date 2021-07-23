@@ -4,6 +4,8 @@ This repository is an **R package**. It was created by Kaija Gahm in 2020 and 20
 
 Unfortunately, I (Kaija) wasn't able to finalize the package before leaving. So here, I'm going to outline what I've done so far, my reasons for creating an R package (instead of just a collection of scripts), and some instructions for how to carry this forward if desired.
 
+For a video introduction to the package structure and the basics of adding functions and maintaining the package, see ['MFEUtilities Tutorial.mp4'](https://app.box.com/file/837329933072), which is on Box under 'MFE/Database/Database Management'.
+
 ## Background
 
 When I arrived at MFE, there were two high-level GitHub repositories for interfacing with the MFE database.
@@ -77,6 +79,8 @@ You will definitely need to install `roxygen2` and `devtools` in order to do any
 install.packages("roxygen2")
 install.packages("devtools")
 ```
+
+I've created a video introduction to the package structure and the basics of adding functions and maintaining the package, see ['MFEUtilities Tutorial.mp4'](https://app.box.com/file/837329933072), which is on Box under 'MFE/Database/Database Management'.
 
 [R Packages](https://r-pkgs.org/index.html) is a great, accessible resource written by Jenny Bryan and Hadley Wickham. If you're trying to get your head around an already existing package like this one, start from the **Package components** section. 
 [Writing an R package from scratch](https://hilaryparker.com/2014/04/29/writing-an-r-package-from-scratch/) by Hilary Parker. 
