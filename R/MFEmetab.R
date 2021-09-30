@@ -384,14 +384,14 @@ bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE){
 #' @param sensorDepth Depth of DO sensor, m; defaults to UNDERC (0.7?)
 #' @param outName Text to use in lableing outputs, e.g. 'Acton2008'. Character. No default.
 #' @export
-#Load required packages
-library(LakeMetabolizer)
-
 mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
                      k = "cole&caraco", fluxDummyToggle = TRUE, 
                      bootstrap = 'no', lat = 46.16, elev = 535, windHeight = 2,
                      timeStep = 10, sensorDepth = 0.7){
-  #For troubleshooting:
+  	
+	library(LakeMetabolizer)
+
+	#For troubleshooting:
   #maxZMix=8;k="cole&caraco";fluxDummyToggle=TRUE;bootstrap='no';lat=46.16;elev=535;windHeight=2;timeStep=10;sensorDepth=0.7
 
   # Set environment tz variable to CDT
