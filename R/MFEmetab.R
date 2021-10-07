@@ -426,7 +426,7 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   tempChain<-sensordbTable("HOBO_TCHAIN_CORR",lakeID=lakeID,minDate=minDate,maxDate=maxDate)
   tempChain2<-tempChain[,c("dateTime","depth_m","cleanedTemp_C")]
   colnames(tempChain2)=c('datetime','depth_m','temp')
-  dataTempProfile<-reshape2::reshape(tempChain2,timevar="depth_m",idvar="datetime",direction="wide",sep="")
+  dataTempProfile<-reshape(tempChain2,timevar="depth_m",idvar="datetime",direction="wide",sep="")
   
   metDataEL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="EL",minDate=minDate,maxDate=maxDate)
   metDataWL<-sensordbTable("HOBO_METSTATION_CORR",lakeID="WL",minDate=minDate,maxDate=maxDate)
