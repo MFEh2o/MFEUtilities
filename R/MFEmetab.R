@@ -32,11 +32,10 @@ floorMins <- function(dataIn){
 
 #' Find Not Dup Rows
 #' Function to find duplicate datetime stamps. Returns the indices of rows where the datetime is NOT a duplicate of the datetime in a previous row. 
-#' @param dataInName character, e.g. "dataPAR"
+#' @param dataIn a data frame
 #' @return A vector, indices of rows where the datetime is NOT a duplicat of the datetime in a previous row.
 #' @export
-findNotDupRows <- function(dataInName){
-  dataIn <- eval(parse(text=dataInName))
+findNotDupRows <- function(dataIn){
   #Find duplicated time stamps
   dups <- duplicated(dataIn$datetime)
   #If no duplicated time stamps, notDupRows=all rows in dataIn
@@ -462,15 +461,15 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   
   ##
   #Remove rows with duplicate datetime stamps (and warn)
-  notDupRows <- findNotDupRows("dataDO")
+  notDupRows <- findNotDupRows(dataDO)
   dataDO <- dataDO[notDupRows,]
-  notDupRows <- findNotDupRows("dataPAR")
+  notDupRows <- findNotDupRows(dataPAR)
   dataPAR <- dataPAR[notDupRows,]
-  notDupRows <- findNotDupRows("dataWind")
+  notDupRows <- findNotDupRows(dataWind)
   dataWind <- dataWind[notDupRows,]
-  notDupRows <- findNotDupRows("dataSensorTemp")
+  notDupRows <- findNotDupRows(dataSensorTemp)
   dataSensorTemp <- dataSensorTemp[notDupRows,]
-  notDupRows <- findNotDupRows("dataTempProfile")
+  notDupRows <- findNotDupRows(dataTempProfile)
   dataTempProfile <- dataTempProfile[notDupRows,]
 
   dataDO$datetime <- floorMins(dataDO)
@@ -480,15 +479,15 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   dataTempProfile$datetime <- floorMins(dataTempProfile)
   
   #Repeat check for dup rows in case any introduced during floorMins
-  notDupRows <- findNotDupRows("dataDO")
+  notDupRows <- findNotDupRows(dataDO)
   dataDO <- dataDO[notDupRows,]
-  notDupRows <- findNotDupRows("dataPAR")
+  notDupRows <- findNotDupRows(dataPAR)
   dataPAR <- dataPAR[notDupRows,]
-  notDupRows <- findNotDupRows("dataWind")
+  notDupRows <- findNotDupRows(dataWind)
   dataWind <- dataWind[notDupRows,]
-  notDupRows <- findNotDupRows("dataSensorTemp")
+  notDupRows <- findNotDupRows(dataSensorTemp)
   dataSensorTemp <- dataSensorTemp[notDupRows,]
-  notDupRows <- findNotDupRows("dataTempProfile")
+  notDupRows <- findNotDupRows(dataTempProfile)
   dataTempProfile <- dataTempProfile[notDupRows,]
   
   #Find the latest first time point and the earliest last time point of all the data
