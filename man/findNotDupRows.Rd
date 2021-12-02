@@ -5,10 +5,10 @@
 \title{Find Not Dup Rows
 Function to find duplicate datetime stamps. Returns the indices of rows where the datetime is NOT a duplicate of the datetime in a previous row.}
 \usage{
-findNotDupRows(dataInName)
+findNotDupRows(dataIn)
 }
 \arguments{
-\item{dataInName}{character, e.g. "dataPAR"}
+\item{dataIn}{a data frame}
 }
 \value{
 A vector, indices of rows where the datetime is NOT a duplicat of the datetime in a previous row.

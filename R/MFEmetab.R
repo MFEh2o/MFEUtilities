@@ -4,9 +4,10 @@
 #' Floor Mins
 #' Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)
 #' @param dataIn A data frame
+#' @param timeStep Time interval between DO measurements, minutes; defaults to 10 minutes
 #' @return A vector
 #' @export
-floorMins <- function(dataIn){
+floorMins <- function(dataIn, timeStep){
   #Pull out datetime column and name it x
   x <- dataIn$datetime
   nRows <- length(x)
@@ -306,9 +307,10 @@ metabLoss_v4 <- function (parsIn, dataIn) {
 #' @param dataTemp A data frame
 #' @param n Number of bootstrap iterations; default is 1000.
 #' @param ar1.resids Logical; whether or not to maintain the ar1 component of the residuals.
+#' @param timeStep timeStep of data
 #' @return A data frame
 #' @export
-bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE){
+bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE, timeStep){
   
   n.obs = length(dataTemp$DOObs)
   
@@ -472,11 +474,11 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   notDupRows <- findNotDupRows(dataTempProfile)
   dataTempProfile <- dataTempProfile[notDupRows,]
 
-  dataDO$datetime <- floorMins(dataDO)
-  dataPAR$datetime <- floorMins(dataPAR)
-  dataWind$datetime <- floorMins(dataWind)
-  dataSensorTemp$datetime <- floorMins(dataSensorTemp)
-  dataTempProfile$datetime <- floorMins(dataTempProfile)
+  dataDO$datetime <- floorMins(dataDO,timeStep=timeStep)
+  dataPAR$datetime <- floorMins(dataPAR,timeStep=timeStep)
+  dataWind$datetime <- floorMins(dataWind,timeStep=timeStep)
+  dataSensorTemp$datetime <- floorMins(dataSensorTemp,timeStep=timeStep)
+  dataTempProfile$datetime <- floorMins(dataTempProfile,timeStep=timeStep)
   
   #Repeat check for dup rows in case any introduced during floorMins
   notDupRows <- findNotDupRows(dataDO)
@@ -902,7 +904,7 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
       
       #bootstrapping 
       if(tolower(bootstrap)=='yes'){
-        bootResult<-bootstrap.metab(parGuess = parGuess,dataTemp = dataTemp,n = 100)
+        bootResult<-bootstrap.metab(parGuess = parGuess,dataTemp = dataTemp,n = 100, timeStep = timeStep)
         optimOut[i,9] = sd(bootResult$rho)
         optimOut[i,8] = sd(bootResult$iota)
         optimOut[i,10] = sd(bootResult$GPP)

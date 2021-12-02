@@ -5,10 +5,12 @@
 \title{Floor Mins
 Round all time down to nearest timeStep (e.g. if timeStep is 5, round 00:07 to 00:05)}
 \usage{
-floorMins(dataIn)
+floorMins(dataIn, timeStep)
 }
 \arguments{
 \item{dataIn}{A data frame}
+
+\item{timeStep}{Time interval between DO measurements, minutes; defaults to 10 minutes}
 }
 \value{
 A vector
