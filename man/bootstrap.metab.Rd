@@ -5,7 +5,7 @@
 \title{Bootstrap Metabolism
 Bootstrapping function for metabolism model; JAZ 2014-11-3; modified from Winslow and GLEON fellows}
 \usage{
-bootstrap.metab(parGuess, dataTemp, n = 1000, ar1.resids = FALSE)
+bootstrap.metab(parGuess, dataTemp, n = 1000, ar1.resids = FALSE, timeStep)
 }
 \arguments{
 \item{parGuess}{A guessed parameter to start with? (Not sure this is right -KG)}
@@ -15,6 +15,8 @@ bootstrap.metab(parGuess, dataTemp, n = 1000, ar1.resids = FALSE)
 \item{n}{Number of bootstrap iterations; default is 1000.}
 
 \item{ar1.resids}{Logical; whether or not to maintain the ar1 component of the residuals.}
+
+\item{timeStep}{timeStep of data}
 }
 \value{
 A data frame
