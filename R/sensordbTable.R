@@ -58,12 +58,13 @@ sensordbTable<-function(table,fpath=sensor_dbdir,
   }
   
   ###alter column classes within tables
-  dateFix=c('date' )
-  dateTimeFix=c('dateTime')
+  dateFix=c('date')
+  dateTimeFix=c('dateTime', 'dateTimeDeploy', 'dateTimeRetrieve')
   numericFix=c('precip_mm', 'cleanedPrecip_mm', 'temp_C', 'DO_mg_L', 'spcond_uS_cm', 'pH', 'pH_mV', 'DO_pctSat', 'batt_V', "cleanedLight_lux",
                'cleanedTemp_C', 'cleanedDO_mg_L', 'press_kPa', 'cleanedPress_kPa', 'atmPressure_kPa', 'PAR_uE_m2_s', 'windSpeed_m_s', 'depth_m',
                'windGust_m_s', 'windDir_deg', 'RH_pct', 'dewPoint_C', 'cleanedAtmPressure_kPa', 'cleanedPAR_uE_m2_s', "light_lux",
-               'cleanedWindSpeed_m_s', 'cleanedWindGust_m_s', 'cleanedWindDir_deg', 'cleanedRH_pct', 'cleanedDewPoint_C')
+               'cleanedWindSpeed_m_s', 'cleanedWindGust_m_s', 'cleanedWindDir_deg', 'cleanedRH_pct', 'cleanedDewPoint_C','lightLevel',
+               'targetDepth', 'actualDepth', 'tinDryWeight', 'tinAshedWeight', 'cleanedTemp', 'cleanedDO', 'temp', 'DO')
   characterFix = c('location', 'changesCodePress', 'changesCodePAR', 'changesCodeWindSpeed', 'changesCodeWindGust',"changesCodeLight",
                    'changesCodeWindDir', 'changesCodeTemp', 'changesCodeRH', 'changesCodeDewPoint', 'lakeID', 'changesCodeDO',
                    "changesCodePrecip")
