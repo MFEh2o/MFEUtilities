@@ -36,7 +36,8 @@ floorMins <- function(dataIn, timeStep){
 #' @param dataIn a data frame
 #' @return A vector, indices of rows where the datetime is NOT a duplicat of the datetime in a previous row.
 #' @export
-findNotDupRows <- function(dataIn){
+findNotDupRows <- function(dataInName){
+  dataIn<-eval(parse(text=dataInName))
   #Find duplicated time stamps
   dups <- duplicated(dataIn$datetime)
   #If no duplicated time stamps, notDupRows=all rows in dataIn
