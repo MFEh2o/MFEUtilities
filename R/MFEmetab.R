@@ -36,8 +36,9 @@ floorMins <- function(dataIn, timeStep){
 #' @param dataIn a data frame
 #' @return A vector, indices of rows where the datetime is NOT a duplicat of the datetime in a previous row.
 #' @export
-findNotDupRows <- function(dataInName){
-  dataIn<-eval(parse(text=dataInName))
+findNotDupRows <- function(dataIn){
+  #dataIn<-eval(parse(text=dataInName))
+  dataInName<-colnames(dataIn)[2]
   #Find duplicated time stamps
   dups <- duplicated(dataIn$datetime)
   #If no duplicated time stamps, notDupRows=all rows in dataIn
@@ -464,15 +465,15 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   
   ##
   #Remove rows with duplicate datetime stamps (and warn)
-  notDupRows <- findNotDupRows("dataDO")
+  notDupRows <- findNotDupRows(dataDO)
   dataDO <- dataDO[notDupRows,]
-  notDupRows <- findNotDupRows("dataPAR")
+  notDupRows <- findNotDupRows(dataPAR)
   dataPAR <- dataPAR[notDupRows,]
-  notDupRows <- findNotDupRows("dataWind")
+  notDupRows <- findNotDupRows(dataWind)
   dataWind <- dataWind[notDupRows,]
-  notDupRows <- findNotDupRows("dataSensorTemp")
+  notDupRows <- findNotDupRows(dataSensorTemp)
   dataSensorTemp <- dataSensorTemp[notDupRows,]
-  notDupRows <- findNotDupRows("dataTempProfile")
+  notDupRows <- findNotDupRows(dataTempProfile)
   dataTempProfile <- dataTempProfile[notDupRows,]
 
   dataDO$datetime <- floorMins(dataDO,timeStep=timeStep)
