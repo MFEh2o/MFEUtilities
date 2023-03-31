@@ -637,8 +637,7 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   nCols <- dim(dataTempProfile)[2]
   
   #Loop over the columns of dataTempProfile
-  for (i in 2:nCols)
-  {
+  for(i in 2:nCols){
     dataTemp <- dataTempProfile[,c(1,i)]
     dataTemp[,2]=as.numeric(dataTemp[,2])
     #***** set maxLength to enable long interpolations or not
@@ -650,14 +649,12 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
   #Calculate zMix and fluxDummy
   
   #If temperature measured at only one depth, use maxZMix as zMix at every time
-  if (ncol(dataTempProfile) <= 2)
-  {
+  if(ncol(dataTempProfile) <= 2){
     dataZMix <- data.frame(datetime=dataTempProfile$datetime,
                            zMix=rep(maxZMix,length(dataTempProfile$datetime)))
-  } else
+  }else{
     
     #Otherwise calculate zMix from data
-  {
     #Convert tempProfile data to density
     #Density of water (kg m-3) as function of temp from McCutcheon (1999)
     #Note there is a different formula if salinity is appreciable; formula below ignores that
@@ -859,25 +856,27 @@ mfeMetab <- function(lakeID, minDate, maxDate, outName, dirDump, maxZMix = 8,
     timeSlice <- c(sun$sunrise[i], sun$sunrise[i+1])
     dataTemp <- data2[data2$datetime>=timeSlice[1] & data2$datetime<timeSlice[2],]
     
+    ####### adding a check to force negative DO values to zero to avoid fitting issues
+    dataTemp$DOObs[dataTemp$DOObs<=0]=1e-4
+    
     #If we have less than 75% of the day, more than 20% of DOObs is missing, or if any NA in DOSat, irr, kO2, or zMix, 
     # return NA for optimization results and plot blank plots
     nTot <- length(dataTemp$DOObs)
     nNA <- length(which(is.na(dataTemp$DOObs)))
-    if ((nTot<(24*60/timeStep*0.75)) | (nNA/nTot > 0.30) |  any(is.na(dataTemp[,3:6]))){
+    if((nTot<(24*60/timeStep*0.75)) | (nNA/nTot > 0.30) |  any(is.na(dataTemp[,3:6]))){
       optimOut[i,2:6] <- NA
       frame(); frame()
       next
-    } else
+    }else{
       
       #Otherwise, fit model and make plots
-    {
       
       #For guess of initial DOHat, use first obs unless that is NA, in which case use min obs
       if (is.na(dataTemp$DOObs[1])==F){
         DOInit <- dataTemp$DOObs[1]
       }else{
           DOInit <- min(dataTemp$DOObs,na.rm=T)
-          }
+      }
       
       #Find parameter values by minimizing nll
       parGuess <- log(c(iotaGuess,rhoGuess,DOInit))
