@@ -305,7 +305,7 @@ metabLoss_v4 <- function (parsIn, dataIn) {
 
 #' Bootstrap Metabolism
 #' Bootstrapping function for metabolism model; JAZ 2014-11-3; modified from Winslow and GLEON fellows 
-#' @param parGuess A guessed parameter to start with? (Not sure this is right -KG)
+#' @param parGuess Log-transformed maximum likelihood estimates of the parameters from an initial fit of the model.
 #' @param dataTemp A data frame
 #' @param n Number of bootstrap iterations; default is 1000.
 #' @param ar1.resids Logical; whether or not to maintain the ar1 component of the residuals.
@@ -316,7 +316,7 @@ bootstrap.metab <- function(parGuess, dataTemp, n=1000, ar1.resids=FALSE, timeSt
   
   n.obs = length(dataTemp$DOObs)
   
-  doHat  = metabPredix_v4(optimTemp$par,dataTemp)$DOHat
+  doHat  = metabPredix_v4(parGuess,dataTemp)$DOHat
   resids = dataTemp$DOObs - doHat
   
   #If we are maintaining the ar1 component of the residuals, 
